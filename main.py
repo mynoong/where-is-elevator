@@ -1,230 +1,81 @@
 import cv2
-import numpy as np
-import matplotlib.pyplot as plt
 import pytesseract
+import matplotlib.pyplot as plt
+import numpy as np
+from imageProcessing import imageProcessing as ip
 
-img0 = cv2.imread('test3_cropped.jpg')
 
+img0 = cv2.imread('image11_cropped.jpg')
 height, width, channel = img0.shape
 
 #Make an image of RGB into gray
-hsv = cv2.cvtColor(img0, cv2.COLOR_BGR2HSV)
-img_gray = hsv[:, :, 2]
+img_gray = ip.RGBtoGRAY(img0)
+ip.checkPhoto(img_gray, 'image_gray.jpg')
 
 
 #Blur an image and minimize noises
-img_blurred = cv2.GaussianBlur(img_gray, ksize = (7, 7), sigmaX = 0)
+ksize = (3, 3)
+img_blurred = ip.gaussianBlur(img_gray, ksize)
+ip.checkPhoto(img_blurred, 'image_blurred.jpg')
 
 
 #Threshold pixel figures by 0 or 255 using adaptive gaussian threshold
-img_thresholded = cv2.adaptiveThreshold(
-    img_blurred,
-    maxValue = 255.0,
-    adaptiveMethod = cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-    thresholdType = cv2.THRESH_BINARY,
-    blockSize = 55,
-    C = 9
-)
-#Check photo
-plt.figure(figsize = (12, 10))
-plt.imshow(img_thresholded, cmap = 'gray')
-plt.savefig('img_thresholded.jpg')
+blockSize = 45
+C = -3
+img_thresholded = ip.adaptiveThresholdGaussian(img_blurred, blockSize, C)
+ip.checkPhoto(img_thresholded, 'image_thresholded.jpg')
 
 
 #Draw contours of an image
-img_contoured = np.zeros((height, width, channel), dtype = np.uint8)
-contours, _ = cv2.findContours(
-    img_thresholded,
-    mode = cv2.RETR_LIST,
-    method = cv2.CHAIN_APPROX_SIMPLE
-)
-cv2.drawContours(
-    img_contoured,
-    contours = contours,
-    contourIdx = -1,
-    color = (255, 255, 255)
-)
-#Check photo
-plt.figure(figsize = (12, 10))
-plt.imshow(img_contoured, cmap = 'gray')
-plt.savefig('img_contoured.jpg')
+img_contoured, contours = ip.drawContours(img_thresholded)
+ip.checkPhoto(img_contoured, 'image_contoured.jpg')
 
 
 #Generate boundary boxes of elements in an image
-img_bbox = np.zeros((height, width, channel), dtype = np.uint8)
-contours_dict = []
-
-for c in contours:
-    x, y, w, h = cv2.boundingRect(c)
-    cv2.rectangle(
-        img_bbox,
-        pt1 = (x, y),
-        pt2 = (x + w, y + h),
-        color = (255, 255, 255),
-        thickness = 2
-    )
-    contours_dict.append({'contour': c, 'x': x, 'y': y, 'w': w, 'h': h, 
-                          'cx': x + (w / 2), 'cy': y + (h / 2)
-    })
-#Check photo
-plt.figure(figsize = (12, 10))
-plt.imshow(img_bbox, cmap = 'gray')
-plt.savefig('img_bbox.jpg')
+img_bbox, contours_dict = ip.drawBoundaryBoxes(img_contoured, contours)
+ip.checkPhoto(img_bbox, 'image_bbox.jpg')
 
 
 #Select candidates of boundary boxes by digit size
-MIN_AREA = 40
-MIN_WIDTH, MIN_HEIGHT = 10, 30
-MAX_WIDTH, MAX_HEIGHT = 50, 80
-MIN_RATIO, MAX_RATIO = 0.10, 0.9
+img_candi_bbox, contours_candi_dict = ip.selectBboxes(img_bbox, contours_dict)
+ip.checkPhoto(img_candi_bbox, 'image_candi_bbox.jpg')
 
-contours_candi_dict = []
-cnt = 0
-for c in contours_dict:
-    area = c['w'] * c['h']
-    ratio = c['w'] / c['h']
-    
-    if area > MIN_AREA and \
-        MIN_WIDTH < c['w'] < MAX_WIDTH and \
-        MIN_HEIGHT < c['h'] < MAX_HEIGHT and \
-        MIN_RATIO < ratio < MAX_RATIO:
-            #c['idx'] = cnt
-            #cnt += 1
-            contours_candi_dict.append(c)
 
-img_candi_bbox = np.zeros((height, width, channel), dtype=np.uint8)
-for c in contours_candi_dict:
-    cv2.rectangle(img_candi_bbox, 
-        pt1 = (c['x'], c['y']), 
-        pt2 = (c['x'] + c['w'], c['y'] + c['h']), 
-        color = (255, 255, 255), thickness = 2
-    )
-#Check photo
-plt.figure(figsize = (12, 10))
-plt.imshow(img_candi_bbox, cmap = 'gray')
-plt.savefig('img_candi_bbox.jpg')
+#Get image of each digit from dictionary "contours_candi_dict"
+#and store it in dictionary "img_digits"
+img_digits = ip.getDigitImage(img_gray, contours_candi_dict)
 
 
 #Get infos of selected digits and find the matching number w/ pytesseract
-
-digits_x = []
-digits_y = []
-digits_xw = []
-digits_yh = []
-
-for c in contours_candi_dict:
-    digits_x.append(c['x'])
-    digits_y.append(c['y'])   
-    digits_xw.append(c['x'] + c['w'])   
-    digits_yh.append(c['y'] + c['h'])
-
-Xmin = np.min(digits_x)
-Ymin = np.min(digits_y)
-XWmax = np.max(digits_xw)
-YHmax = np.max(digits_yh)
-
-img_digits = cv2.getRectSubPix(
-    img_gray,
-    patchSize = (int(XWmax - Xmin), int(YHmax - Ymin)),
-    center = (int((XWmax + Xmin) / 2), int((YHmax + Ymin) / 2))
-)
-
-img_digits = cv2.GaussianBlur(
-        img_digits, 
-        ksize = (7, 7), 
-        sigmaX = 0
-)
-
-img_digits = cv2.adaptiveThreshold(
-    img_digits,
-    maxValue = 255.0,
-    adaptiveMethod = cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-    thresholdType = cv2.THRESH_BINARY,
-    blockSize = 33,
-    C = 9
-)
-
-contours, _ = cv2.findContours(
-    img_digits,
-    mode = cv2.RETR_LIST,
-    method = cv2.CHAIN_APPROX_SIMPLE
-)
-cv2.drawContours(
-    img_digits,
-    contours = contours,
-    contourIdx = -1,
-    color = (255, 255, 255)
-)
-
-img_digits = cv2.copyMakeBorder(
-        img_digits, 
-        top = 20, bottom = 20, left = 20, right = 20, 
-        borderType = cv2.BORDER_CONSTANT, value = (0, 0, 0)
-)
-
-#Check photo
-plt.figure(figsize = (12, 10))
-plt.imshow(img_digits, cmap = 'gray')
-plt.savefig('img_digits.jpg')
-
-chars = pytesseract.image_to_string(
-        img_digits, lang = 'eng', config = '--psm 7'
-        #let pytesseract know digits are alligned in a line
-        #and use legacy engine to just perceive each digit, 
-        #not to understand/interpret an image 
-)
-print(chars)
-
-
-"""
-img_digits = []
-
-for c in contours_candi_dict:
-    digit_height = c['h']
-    digit_width = c['w']
-    digit_cx = c['cx']
-    digit_cy = c['cy']  
-    
-    img_digit = cv2.getRectSubPix(
-        img_gray, 
-        patchSize = (int(digit_width), int(digit_height)),
-        center = (int(digit_cx), int(digit_cy))
-    )
-    img_digits.append(img_digit)
-
 chars = ""
+
 for img_digit in img_digits:
-    img_digit = cv2.GaussianBlur(
-        img_digit, 
-        ksize = (3, 3), 
-        sigmaX = 0
-    )
-    img_digit = cv2.adaptiveThreshold(
+    ksize = (3, 3)
+    img_digit = ip.gaussianBlur(img_digit, ksize)
+    blockSize = 45
+    C = -3
+    img_digit = ip.adaptiveThresholdGaussian(img_digit, blockSize, C)
+    #img_digit = ip.otsuBinaryThreshold(img_digit)
+    img_digit = ip.makeBorder(img_digit)
+    
+    _, img_digit = cv2.threshold(
         img_digit,
-        maxValue = 255.0,
-        adaptiveMethod = cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        thresholdType = cv2.THRESH_BINARY,
-        blockSize = 19,
-        C = 9
-    )    
-    img_digit = cv2.copyMakeBorder(
-        img_digit, 
-        top = 20, bottom = 20, left = 20, right = 20, 
-        borderType = cv2.BORDER_CONSTANT, value = (0, 0, 0)
+        thresh = 0,
+        maxval = 255.0,
+        type = cv2.THRESH_BINARY_INV
     )
     
+    ip.checkPhoto(img_digit, 'image_digit.jpg')
+
     char = pytesseract.image_to_string(
-        img_digit, lang = 'eng', config = '--psm 7'
-        #let pytesseract know digits are alligned in a line
+        img_digit, lang = 'eng', 
+        config = '--psm 10 -c tessedit_char_whitelist=0123456789'
+        #config = '--psm 7 --oem 0 -c tessedit_char_whitelist=0123456789'
+        #let pytesseract know it is a single digit
         #and use legacy engine to just perceive each digit, 
         #not to understand/interpret an image 
     )
+    char = char[0]
     chars += char
-    #plt.figure(figsize = (12, 10))
-    #plt.imshow(img_digit, cmap = 'gray')
-    #plt.savefig('i.jpg')
     
 print(chars)
-"""
-
-    
