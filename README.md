@@ -18,9 +18,6 @@ The Elevator Number Recognizing Program is designed to capture images of elevato
 
 This Elevator Number Recognizing Program was originally employed in the "Dukgo: KMLA Dormitory Application" project. In this application, it served as a valuable feature, assisting users in determining the location of elevators within the dormitory. The program helped users make informed decisions about which elevator to take for the quickest access to their destination.
 
-## Usage
-
-For detailed instructions on how to use the program, set up the Raspberry Pi, and integrate it into your own projects or applications, please refer to the documentation provided in the repository.
 
 ## Acknowledgments
 
