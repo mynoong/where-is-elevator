@@ -1,3 +1,11 @@
+"""_summary_
+This program is runned on raspberry pi. It takes an image of elevator number
+and crops into size of 90 (height) * 120 (width). Then, it processes an image
+with several steps, including grayscaling, blurring, and thresholding. Using
+tesseract OCR engine, it translates an processed image into a string only 
+including digits from 0 to 9.
+"""
+
 import time
 import cv2
 import pytesseract
@@ -8,7 +16,7 @@ from imageProcessing import imageProcessing as ip
 
 while True:
     tcp.takePhoto
-    tcp.cropPhoto
+    tcp.cropPhoto((1750, 1200, 1870, 1290))
     
     img0 = cv2.imread('image_cropped.jpg')
     height, width, channel = img0.shape

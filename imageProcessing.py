@@ -1,3 +1,5 @@
+# Packages/libraries with processing images through opencv-python library
+
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
