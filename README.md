@@ -18,7 +18,5 @@ The Elevator Number Recognizing Program is designed to capture images of elevato
 
 This Elevator Number Recognizing Program was originally employed in the "Dukgo: KMLA Dormitory Application" project. In this application, it served as a valuable feature, assisting users in determining the location of elevators within the dormitory. The program helped users make informed decisions about which elevator to take for the quickest access to their destination.
 
-
-## Acknowledgments
-
-This program benefits from the capabilities of OpenCV and Tesseract OCR, powerful open-source libraries that contribute to its image processing and optical character recognition functionality.
+## Custom Neural Network
+Original Tesseract OCR is focused on vast fonts and letters, but not specified for numbers or digits. Thus, custom CNN model is in development with custom dataset collected from caputured images of elevator numbers.
